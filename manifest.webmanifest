@@ -1,0 +1,30 @@
+{
+  "name": "Controle Financeiro Pessoal",
+  "short_name": "Meu Financeiro",
+  "description": "Controle gastos por cartao, acompanhe proventos e visualize o saldo previsto do mes.",
+  "lang": "pt-BR",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f4efe7",
+  "theme_color": "#1c5c4c",
+  "icons": [
+    {
+      "src": "./icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "./icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "./icons/maskable-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable any"
+    }
+  ]
+}

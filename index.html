@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#1c5c4c">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Meu Financeiro">
+  <title>Controle Financeiro Pessoal</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png" sizes="192x192">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon-180.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="app-shell">
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">Planejamento Financeiro</p>
+        <h1>Controle seus gastos por cartao, acompanhe proventos e visualize o total do mes.</h1>
+        <p class="hero-text">
+          Adicione gastos individuais em cada cartao, personalize as cores e acompanhe sua previsao mensal em tempo real.
+        </p>
+      </div>
+
+      <div class="summary-panel">
+        <div class="summary-grid">
+          <label class="field-card">
+            <span>Salario do mes</span>
+            <input type="number" id="salaryInput" min="0" step="0.01" placeholder="0,00">
+          </label>
+
+          <label class="field-card">
+            <span>Proventos extras</span>
+            <input type="number" id="benefitsInput" min="0" step="0.01" placeholder="0,00">
+          </label>
+
+          <div class="result-card">
+            <span>Total de entradas</span>
+            <strong id="incomeTotal">R$ 0,00</strong>
+          </div>
+
+          <div class="result-card expense-highlight">
+            <span>Total de gastos</span>
+            <strong id="expenseTotal">R$ 0,00</strong>
+          </div>
+
+          <div class="result-card result-balance">
+            <span>Saldo previsto</span>
+            <strong id="balanceTotal">R$ 0,00</strong>
+          </div>
+        </div>
+
+        <label class="note-card">
+          <span>Anotacao</span>
+          <input
+            type="text"
+            id="monthNote"
+            value="Previsao de saldo para o mes de Maio"
+            placeholder="Escreva uma observacao para o mes"
+          >
+        </label>
+      </div>
+    </section>
+
+    <section class="toolbar">
+      <div>
+        <p class="section-label">Cartoes</p>
+        <h2>Gastos por cartao</h2>
+      </div>
+      <button id="addCardButton" class="primary-button" type="button">Adicionar cartao</button>
+    </section>
+
+    <section id="cardsContainer" class="cards-grid"></section>
+  </main>
+
+  <template id="cardTemplate">
+    <article class="finance-card">
+      <div class="card-top">
+        <div class="card-head">
+          <input class="card-name-input" type="text" value="Novo cartao" aria-label="Nome do cartao">
+          <p class="card-subtitle">Liste os gastos individuais e acompanhe a somatoria deste cartao.</p>
+        </div>
+
+        <div class="color-picker-wrap">
+          <label>
+            <span>Cor do card</span>
+            <input class="card-color-input" type="color" value="#1f8a70" aria-label="Cor do card">
+          </label>
+        </div>
+      </div>
+
+      <div class="expense-list-header">
+        <span>Descricao</span>
+        <span>Valor</span>
+      </div>
+
+      <div class="expenses-list"></div>
+
+      <div class="card-actions">
+        <button type="button" class="secondary-button add-expense-button">Adicionar gasto</button>
+      </div>
+
+      <div class="card-footer">
+        <div class="mini-total">
+          <span>Total deste cartao</span>
+          <strong class="card-total-value">R$ 0,00</strong>
+        </div>
+
+        <label class="mini-total inline-total-field expense-highlight">
+          <span>Somatoria total dos gastos</span>
+          <input class="card-total-input" type="text" value="R$ 0,00" readonly>
+        </label>
+      </div>
+    </article>
+  </template>
+
+  <template id="expenseRowTemplate">
+    <div class="expense-row">
+      <input class="expense-description" type="text" placeholder="Ex.: Mercado, combustivel, assinatura">
+      <input class="expense-value" type="number" min="0" step="0.01" placeholder="0,00">
+      <button class="remove-expense-button" type="button" aria-label="Remover gasto">Remover</button>
+    </div>
+  </template>
+
+  <script src="script.js"></script>
+</body>
+</html>
