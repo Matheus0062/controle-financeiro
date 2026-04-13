@@ -110,7 +110,7 @@ body {
 .result-card span,
 .note-card span,
 .mini-total span,
-.color-picker-wrap span {
+.card-menu-color-field span {
   font-size: 13px;
   font-weight: 700;
   color: var(--muted);
@@ -174,7 +174,8 @@ input:focus {
 
 .primary-button,
 .secondary-button,
-.remove-expense-button {
+.remove-expense-button,
+.card-delete-button {
   border: 0;
   border-radius: 999px;
   font: inherit;
@@ -204,9 +205,18 @@ input:focus {
   color: var(--danger);
 }
 
+.card-delete-button {
+  width: 100%;
+  margin-top: 10px;
+  padding: 11px 14px;
+  background: rgba(180, 35, 24, 0.12);
+  color: var(--danger);
+}
+
 .primary-button:hover,
 .secondary-button:hover,
-.remove-expense-button:hover {
+.remove-expense-button:hover,
+.card-delete-button:hover {
   transform: translateY(-1px);
   opacity: 0.92;
 }
@@ -257,11 +267,40 @@ input:focus {
   line-height: 1.5;
 }
 
-.color-picker-wrap label {
+.card-menu {
+  position: relative;
+}
+
+.card-menu-button {
+  border: 0;
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  background: rgba(31, 41, 55, 0.08);
+  color: #334155;
+  font: inherit;
+  font-size: 26px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.card-menu-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 10;
+  width: 160px;
+  padding: 12px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(31, 41, 55, 0.08);
+  box-shadow: 0 18px 38px rgba(15, 23, 42, 0.12);
+}
+
+.card-menu-color-field {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  min-width: 110px;
 }
 
 .card-color-input {
@@ -311,7 +350,7 @@ input:focus {
 
 .card-footer {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 12px;
   margin-top: 18px;
 }
