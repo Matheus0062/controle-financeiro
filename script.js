@@ -95,7 +95,6 @@ function updateCardTotal(card) {
   const total = expenseInputs.reduce((sum, input) => sum + parseCurrencyInput(input.value), 0);
 
   card.dataset.total = String(total);
-  card.querySelector(".card-total-value").textContent = formatCurrency(total);
   card.querySelector(".card-total-input").value = formatCurrency(total);
 
   updateSummary();
@@ -126,6 +125,9 @@ function wireCard(card) {
   const colorInput = card.querySelector(".card-color-input");
   const addExpenseButton = card.querySelector(".add-expense-button");
   const nameInput = card.querySelector(".card-name-input");
+  const menuButton = card.querySelector(".card-menu-button");
+  const menuPanel = card.querySelector(".card-menu-panel");
+  const deleteCardButton = card.querySelector(".card-delete-button");
 
   colorInput.addEventListener("input", (event) => {
     card.style.setProperty("--card-color", event.target.value);
@@ -138,6 +140,28 @@ function wireCard(card) {
   });
 
   nameInput.addEventListener("input", saveAppState);
+  menuButton.addEventListener("click", () => {
+    const isHidden = menuPanel.hasAttribute("hidden");
+    document.querySelectorAll(".card-menu-panel").forEach((panel) => {
+      panel.setAttribute("hidden", "");
+    });
+
+    if (isHidden) {
+      menuPanel.removeAttribute("hidden");
+    }
+  });
+
+  document.addEventListener("click", (event) => {
+    if (!card.contains(event.target)) {
+      menuPanel.setAttribute("hidden", "");
+    }
+  });
+
+  deleteCardButton.addEventListener("click", () => {
+    card.remove();
+    updateSummary();
+    saveAppState();
+  });
 
   card.style.setProperty("--card-color", colorInput.value);
   updateCardTotal(card);
