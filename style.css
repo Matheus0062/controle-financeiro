@@ -384,8 +384,6 @@ input:focus {
 
   .summary-grid,
   .card-footer,
-  .expense-list-header,
-  .expense-row,
   .card-top,
   .toolbar {
     grid-template-columns: 1fr;
@@ -401,8 +399,104 @@ input:focus {
     display: none;
   }
 
+  .cards-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .finance-card {
+    padding: 18px;
+  }
+
+  .card-subtitle {
+    margin-right: 8px;
+  }
+
+  .expenses-list {
+    gap: 14px;
+  }
+
   .expense-row {
-    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    padding: 14px;
+    border-radius: 20px;
+    background: rgba(255, 253, 252, 0.96);
+    box-shadow: 0 10px 22px rgba(31, 41, 55, 0.05);
+  }
+
+  .expense-row .expense-description {
+    grid-column: 1 / -1;
+    min-height: 52px;
+    font-size: 1.05rem;
+  }
+
+  .expense-row .expense-value {
+    min-height: 50px;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--expense-text);
+    background: #f8fafc;
+    padding-top: 12px;
+  }
+
+  .expense-row .remove-expense-button {
+    min-height: 50px;
+    font-size: 1rem;
+  }
+
+  .expense-row .expense-value::placeholder {
+    color: #98a2b3;
+  }
+
+  .expense-row::before {
+    content: "Descricao";
+    grid-column: 1 / -1;
+    margin-bottom: -4px;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .expense-row::after {
+    content: "Valor";
+    position: absolute;
+    left: 28px;
+    bottom: 69px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .expense-row .expense-value,
+  .expense-row .remove-expense-button {
+    margin-top: 16px;
+  }
+
+  .expense-row .expense-value {
+    grid-column: 1 / 2;
+  }
+
+  .expense-row .remove-expense-button {
+    grid-column: 2 / 3;
+  }
+
+  .expense-row {
+    position: relative;
+  }
+
+  .expense-row .remove-expense-button::before {
+    content: "Acao";
+    display: block;
+    margin-bottom: 4px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: rgba(180, 35, 24, 0.7);
   }
 
   .result-balance {
