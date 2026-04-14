@@ -1,4 +1,4 @@
-const CACHE_NAME = "meu-financeiro-v12";
+const CACHE_NAME = "meu-financeiro-v13";
 const APP_ASSETS = [
   "./",
   "./index.html",
@@ -36,21 +36,24 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        return cachedResponse;
-      }
+  const requestUrl = new URL(event.request.url);
 
-      return fetch(event.request).then((networkResponse) => {
-        if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== "basic") {
-          return networkResponse;
+  if (requestUrl.origin !== self.location.origin) {
+    return;
+  }
+
+  event.respondWith(
+    (async () => {
+      try {
+        const networkResponse = await fetch(event.request);
+
+        if (networkResponse && networkResponse.status === 200) {
+          const cache = await caches.open(CACHE_NAME);
+          cache.put(event.request, networkResponse.clone());
         }
 
-        const responseClone = networkResponse.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
         return networkResponse;
-      });
-    })
-  );
-});
+      } catch (error) {
+        const cachedResponse = await caches.match(event.request);
+
+        if (c
