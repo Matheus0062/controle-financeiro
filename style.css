@@ -144,6 +144,63 @@ body {
   margin-top: 14px;
 }
 
+.month-planner {
+  margin-top: 28px;
+  padding: 24px;
+  border-radius: var(--radius-xl);
+  backdrop-filter: blur(16px);
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow: var(--shadow);
+}
+
+.month-planner-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: end;
+}
+
+.month-planner-head h2 {
+  margin: 0;
+  font-size: clamp(1.35rem, 2vw, 1.8rem);
+}
+
+.month-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.month-tabs {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.month-tab {
+  border: 1px solid rgba(31, 41, 55, 0.1);
+  border-radius: 16px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.85);
+  color: var(--text);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 180ms ease, background-color 180ms ease, border-color 180ms ease;
+}
+
+.month-tab:hover {
+  transform: translateY(-1px);
+}
+
+.month-tab.active {
+  background: linear-gradient(135deg, #1c5c4c, #1f8a70);
+  color: #ffffff;
+  border-color: transparent;
+}
+
 input {
   width: 100%;
   border: 1px solid rgba(31, 41, 55, 0.12);
@@ -174,6 +231,7 @@ input:focus {
 
 .primary-button,
 .secondary-button,
+.ghost-button,
 .remove-expense-button,
 .card-delete-button {
   border: 0;
@@ -185,7 +243,8 @@ input:focus {
 }
 
 .primary-button,
-.secondary-button {
+.secondary-button,
+.ghost-button {
   padding: 13px 18px;
 }
 
@@ -199,10 +258,21 @@ input:focus {
   color: #165a4a;
 }
 
+.ghost-button {
+  background: rgba(255, 255, 255, 0.8);
+  color: #334155;
+  border: 1px solid rgba(31, 41, 55, 0.1);
+}
+
 .remove-expense-button {
   padding: 12px 14px;
   background: rgba(180, 35, 24, 0.1);
   color: var(--danger);
+  width: 100%;
+  min-width: 106px;
+  min-height: 46px;
+  justify-self: stretch;
+  align-self: stretch;
 }
 
 .card-delete-button {
@@ -215,6 +285,7 @@ input:focus {
 
 .primary-button:hover,
 .secondary-button:hover,
+.ghost-button:hover,
 .remove-expense-button:hover,
 .card-delete-button:hover {
   transform: translateY(-1px);
@@ -309,11 +380,10 @@ input:focus {
   min-height: 44px;
 }
 
-.expense-list-header,
-.expense-row {
+.expense-list-header {
   display: grid;
-  grid-template-columns: 1.6fr 0.8fr auto;
-  gap: 10px;
+  grid-template-columns: minmax(0, 1.8fr) minmax(0, 0.72fr) minmax(0, 0.5fr) minmax(0, 0.95fr) 106px;
+  gap: 8px;
   align-items: center;
 }
 
@@ -324,10 +394,6 @@ input:focus {
   font-weight: 700;
 }
 
-.expense-list-header span:last-child {
-  grid-column: 2 / 3;
-}
-
 .expenses-list {
   display: flex;
   flex-direction: column;
@@ -335,14 +401,98 @@ input:focus {
 }
 
 .expense-row {
-  padding: 12px;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.88);
+  display: grid;
+  grid-template-columns: minmax(0, 1.8fr) minmax(0, 0.72fr) minmax(0, 0.5fr) minmax(0, 0.95fr) 106px;
+  gap: 8px;
+  align-items: end;
+  padding: 14px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.92);
   border: 1px solid rgba(31, 41, 55, 0.08);
 }
 
 .expense-row input {
   background: #fff;
+}
+
+.expense-row > *,
+.expense-list-header > * {
+  min-width: 0;
+}
+
+.expense-description-field {
+  min-width: 0;
+}
+
+.expense-description {
+  min-width: 0;
+}
+
+.remove-expense-button {
+  white-space: nowrap;
+}
+
+.expense-field,
+.expense-fixed-toggle {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.expense-field > span,
+.expense-fixed-toggle > span:first-child {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  display: none !important;
+}
+
+.expense-fixed-toggle {
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(31, 41, 55, 0.1);
+  min-height: 100%;
+  min-width: 0;
+}
+
+.expense-fixed-toggle-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.expense-fixed-toggle-control input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+  margin: 0;
+}
+
+.expense-badge {
+  grid-column: 1 / -1;
+  justify-self: start;
+  padding: 9px 12px;
+  border-radius: 999px;
+  background: rgba(31, 138, 112, 0.1);
+  color: #165a4a;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.empty-expenses-message {
+  margin: 0;
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px dashed rgba(31, 41, 55, 0.14);
+  color: var(--muted);
 }
 
 .card-actions {
@@ -375,6 +525,10 @@ input:focus {
   .hero {
     grid-template-columns: 1fr;
   }
+
+  .month-tabs {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 640px) {
@@ -386,18 +540,46 @@ input:focus {
   .summary-grid,
   .card-footer,
   .card-top,
+  .month-planner-head,
   .toolbar {
     grid-template-columns: 1fr;
   }
 
   .toolbar,
-  .card-top {
+  .card-top,
+  .month-planner-head {
     display: grid;
     align-items: stretch;
   }
 
+  .expense-field > span,
+  .expense-fixed-toggle > span:first-child {
+    display: block !important;
+  }
+
   .expense-list-header {
     display: none;
+  }
+
+  .month-actions {
+    width: 100%;
+  }
+
+  .month-actions .secondary-button,
+  .month-actions .ghost-button {
+    flex: 1 1 calc(50% - 6px);
+  }
+
+  .month-tabs {
+    display: flex;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scroll-snap-type: x proximity;
+  }
+
+  .month-tab {
+    min-width: 118px;
+    scroll-snap-align: start;
   }
 
   .cards-grid {
@@ -436,68 +618,63 @@ input:focus {
     box-shadow: 0 10px 22px rgba(31, 41, 55, 0.05);
   }
 
-  .expense-row .expense-description {
+  .expense-description-field {
     grid-column: 1 / -1;
+  }
+
+  .expense-value-field,
+  .expense-installments-field,
+  .expense-fixed-toggle,
+  .remove-expense-button {
+    margin-top: 0;
+  }
+
+  .expense-value-field,
+  .expense-installments-field,
+  .expense-fixed-toggle,
+  .remove-expense-button {
+    min-height: auto;
+  }
+
+  .expense-row .expense-description {
     min-height: 52px;
     font-size: 1.05rem;
   }
 
-  .expense-row .expense-value {
+  .expense-row .expense-value,
+  .expense-row .expense-installments {
     min-height: 50px;
     font-size: 1rem;
     font-weight: 700;
-    color: var(--expense-text);
     background: #f8fafc;
-    padding-top: 12px;
-  }
-
-  .expense-row .remove-expense-button {
-    min-height: 50px;
-    font-size: 1rem;
-  }
-
-  .expense-row .expense-value::placeholder {
-    color: #98a2b3;
-  }
-
-  .expense-row::before {
-    content: "Descricao";
-    grid-column: 1 / -1;
-    margin-bottom: -4px;
-    font-size: 12px;
-    font-weight: 800;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    color: var(--muted);
-  }
-
-  .expense-row::after {
-    content: "Valor";
-    position: absolute;
-    left: 28px;
-    bottom: 69px;
-    font-size: 11px;
-    font-weight: 800;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    color: var(--muted);
-  }
-
-  .expense-row .expense-value,
-  .expense-row .remove-expense-button {
-    margin-top: 16px;
   }
 
   .expense-row .expense-value {
+    color: var(--expense-text);
+  }
+
+  .expense-value-field {
     grid-column: 1 / 2;
   }
 
-  .expense-row .remove-expense-button {
+  .expense-installments-field {
     grid-column: 2 / 3;
   }
 
-  .expense-row {
-    position: relative;
+  .expense-fixed-toggle {
+    grid-column: 1 / -1;
+  }
+
+  .expense-row .remove-expense-button {
+    grid-column: 1 / -1;
+    min-height: 52px;
+    font-size: 1rem;
+  }
+
+  .expense-badge {
+    width: 100%;
+    justify-self: stretch;
+    text-align: center;
   }
 
   .result-balance {
