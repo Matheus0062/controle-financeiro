@@ -1,4 +1,4 @@
-const CACHE_NAME = "meu-financeiro-v13";
+const CACHE_NAME = "meu-financeiro-v14";
 const APP_ASSETS = [
   "./",
   "./index.html",
@@ -56,4 +56,20 @@ self.addEventListener("fetch", (event) => {
       } catch (error) {
         const cachedResponse = await caches.match(event.request);
 
-        if (c
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+
+        if (event.request.mode === "navigate") {
+          const fallbackResponse = await caches.match("./index.html");
+
+          if (fallbackResponse) {
+            return fallbackResponse;
+          }
+        }
+
+        throw error;
+      }
+    })()
+  );
+});
