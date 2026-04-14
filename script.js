@@ -612,9 +612,26 @@ loadAppState();
 renderAll();
 
 if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./service-worker.js").catch((error) => {
-      console.error("Falha ao registrar o service worker:", error);
+  window.addEventListener("load", async () => {
+    let isRefreshing = false;
+
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (isRefreshing) {
+        return;
+      }
+
+      isRefreshing = true;
+      window.location.reload();
     });
+
+    try {
+      const registration = await navigator.serviceWorker.register("./service-worker.js?v=14", {
+        updateViaCache: "none"
+      });
+
+      registration.update();
+    } catch (error) {
+      console.error("Falha ao registrar o service worker:", error);
+    }
   });
 }
