@@ -8,7 +8,30 @@ const incomeTotal = document.getElementById("incomeTotal");
 const expenseTotal = document.getElementById("expenseTotal");
 const balanceTotal = document.getElementById("balanceTotal");
 const monthNote = document.getElementById("monthNote");
+const monthTabs = document.getElementById("monthTabs");
+const exportBackupButton = document.getElementById("exportBackupButton");
+const importBackupButton = document.getElementById("importBackupButton");
+const importBackupInput = document.getElementById("importBackupInput");
+
 const STORAGE_KEY = "controle-financeiro-pessoal-v1";
+const APP_VERSION = 2;
+const MONTH_NAMES = [
+  "Janeiro",
+  "Fevereiro",
+  "Marco",
+  "Abril",
+  "Maio",
+  "Junho",
+  "Julho",
+  "Agosto",
+  "Setembro",
+  "Outubro",
+  "Novembro",
+  "Dezembro"
+];
+const CARD_COLORS = ["#1f8a70", "#3b82f6", "#f97316", "#e11d48", "#8b5cf6", "#0f766e"];
+
+let appState = null;
 
 function formatCurrency(value) {
   return new Intl.NumberFormat("pt-BR", {
@@ -22,208 +45,217 @@ function parseCurrencyInput(value) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function readAppState() {
+function createId(prefix) {
+  if (window.crypto && typeof window.crypto.randomUUID === "function") {
+    return `${prefix}-${window.crypto.randomUUID()}`;
+  }
+
+  return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+function clampMonthIndex(value) {
+  const parsed = Number.parseInt(value, 10);
+
+  if (!Number.isFinite(parsed)) {
+    return 0;
+  }
+
+  return ((parsed % 12) + 12) % 12;
+}
+
+function clampInstallments(value) {
+  const parsed = Number.parseInt(value, 10);
+
+  if (!Number.isFinite(parsed)) {
+    return 1;
+  }
+
+  return Math.max(1, Math.min(12, parsed));
+}
+
+function normalizeInputValue(value, fallback = "") {
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(value);
+  }
+
+  return fallback;
+}
+
+function getDefaultNote(monthIndex) {
+  return `Previsao de saldo para o mes de ${MONTH_NAMES[monthIndex]}`;
+}
+
+function createMonthData(monthIndex, source = {}) {
   return {
-    salary: salaryInput.value,
-    benefits: benefitsInput.value,
-    note: monthNote.value,
-    cards: [...document.querySelectorAll(".finance-card")].map((card) => ({
-      name: card.querySelector(".card-name-input").value,
-      color: card.querySelector(".card-color-input").value,
-      expenses: [...card.querySelectorAll(".expense-row")].map((row) => ({
-        description: row.querySelector(".expense-description").value,
-        value: row.querySelector(".expense-value").value
-      }))
-    }))
+    salary: normalizeInputValue(source.salary),
+    benefits: normalizeInputValue(source.benefits),
+    note: normalizeInputValue(source.note, getDefaultNote(monthIndex))
   };
 }
 
+function createCardData(name, color, id = createId("card")) {
+  return {
+    id,
+    name: typeof name === "string" ? name : "",
+    color
+  };
+}
+
+function createExpenseData(cardId, startMonthIndex, source = {}) {
+  const isFixed = Boolean(source.isFixed);
+
+  return {
+    id: source.id || createId("expense"),
+    cardId,
+    description: normalizeInputValue(source.description),
+    value: normalizeInputValue(source.value),
+    installmentCount: isFixed ? 1 : clampInstallments(source.installmentCount || 1),
+    isFixed,
+    startMonthIndex: clampMonthIndex(
+      typeof source.startMonthIndex === "number" ? source.startMonthIndex : startMonthIndex
+    )
+  };
+}
+
+function createBlankExpenses(cardId, monthIndex, count = 2) {
+  return Array.from({ length: count }, () => createExpenseData(cardId, monthIndex));
+}
+
+function createDefaultState() {
+  const currentMonthIndex = new Date().getMonth();
+  const defaultCards = [
+    createCardData("Cartao Principal", "#1f8a70"),
+    createCardData("Cartao Reserva", "#f97316")
+  ];
+
+  return {
+    version: APP_VERSION,
+    activeMonthIndex: currentMonthIndex,
+    months: MONTH_NAMES.map((_, index) => createMonthData(index)),
+    cards: defaultCards,
+    expenses: defaultCards.flatMap((card) => createBlankExpenses(card.id, currentMonthIndex))
+  };
+}
+
+function normalizeCards(cards) {
+  if (!Array.isArray(cards) || cards.length === 0) {
+    return [];
+  }
+
+  return cards.map((card, index) =>
+    createCardData(
+      card.name || `Cartao ${index + 1}`,
+      card.color || CARD_COLORS[index % CARD_COLORS.length],
+      card.id || createId("card")
+    )
+  );
+}
+
+function normalizeExpenses(expenses, cardIds, activeMonthIndex) {
+  if (!Array.isArray(expenses)) {
+    return [];
+  }
+
+  return expenses
+    .filter((expense) => cardIds.has(expense.cardId))
+    .map((expense) => createExpenseData(expense.cardId, activeMonthIndex, expense));
+}
+
+function migrateLegacyState(state) {
+  const currentMonthIndex = new Date().getMonth();
+  const months = MONTH_NAMES.map((_, index) => createMonthData(index));
+  months[currentMonthIndex] = createMonthData(currentMonthIndex, {
+    salary: normalizeInputValue(state.salary),
+    benefits: normalizeInputValue(state.benefits),
+    note: normalizeInputValue(state.note, getDefaultNote(currentMonthIndex))
+  });
+
+  const cards = normalizeCards(state.cards);
+  const expenses = [];
+
+  state.cards.forEach((card, index) => {
+    const normalizedCard = cards[index];
+    const sourceExpenses = Array.isArray(card.expenses) && card.expenses.length > 0
+      ? card.expenses
+      : [{}, {}];
+
+    sourceExpenses.forEach((expense) => {
+      expenses.push(
+        createExpenseData(normalizedCard.id, currentMonthIndex, {
+          description: normalizeInputValue(expense.description),
+          value: normalizeInputValue(expense.value)
+        })
+      );
+    });
+  });
+
+  if (cards.length === 0) {
+    return createDefaultState();
+  }
+
+  return {
+    version: APP_VERSION,
+    activeMonthIndex: currentMonthIndex,
+    months,
+    cards,
+    expenses
+  };
+}
+
+function normalizeState(source) {
+  if (!source || typeof source !== "object") {
+    return createDefaultState();
+  }
+
+  if (Array.isArray(source.months) && Array.isArray(source.cards) && Array.isArray(source.expenses)) {
+    const cards = normalizeCards(source.cards);
+    const activeMonthIndex = clampMonthIndex(source.activeMonthIndex ?? new Date().getMonth());
+    const months = MONTH_NAMES.map((_, index) => createMonthData(index, source.months[index]));
+    const cardIds = new Set(cards.map((card) => card.id));
+    const expenses = normalizeExpenses(source.expenses, cardIds, activeMonthIndex);
+
+    return {
+      version: APP_VERSION,
+      activeMonthIndex,
+      months,
+      cards: cards.length > 0 ? cards : createDefaultState().cards,
+      expenses
+    };
+  }
+
+  if (Array.isArray(source.cards)) {
+    return migrateLegacyState(source);
+  }
+
+  return createDefaultState();
+}
+
 function saveAppState() {
-  const state = readAppState();
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
 }
 
 function loadAppState() {
-  const savedState = localStorage.getItem(STORAGE_KEY);
+  const rawState = localStorage.getItem(STORAGE_KEY);
 
-  if (!savedState) {
-    return false;
+  if (!rawState) {
+    appState = createDefaultState();
+    saveAppState();
+    return;
   }
 
   try {
-    const state = JSON.parse(savedState);
-    salaryInput.value = state.salary || "";
-    benefitsInput.value = state.benefits || "";
-    monthNote.value = state.note || "Previsao de saldo para o mes de Maio";
-    cardsContainer.innerHTML = "";
-
-    if (Array.isArray(state.cards) && state.cards.length > 0) {
-      state.cards.forEach((cardData, index) => {
-        createCard(
-          cardData.name || `Cartao ${index + 1}`,
-          cardData.color || "#1f8a70",
-          Array.isArray(cardData.expenses) ? cardData.expenses : []
-        );
-      });
-    } else {
-      createDefaultCards();
-    }
-
-    updateSummary();
-    return true;
+    appState = normalizeState(JSON.parse(rawState));
+    saveAppState();
   } catch (error) {
     console.error("Falha ao carregar os dados salvos:", error);
-    return false;
+    appState = createDefaultState();
+    saveAppState();
   }
 }
 
-function updateSummary() {
-  const totalIncome = parseCurrencyInput(salaryInput.value) + parseCurrencyInput(benefitsInput.value);
-  const cardTotals = [...document.querySelectorAll(".finance-card")].map((card) =>
-    parseCurrencyInput(card.dataset.total || "0")
-  );
-  const totalExpenses = cardTotals.reduce((sum, value) => sum + value, 0);
-  const balance = totalIncome - totalExpenses;
-
-  incomeTotal.textContent = formatCurrency(totalIncome);
-  expenseTotal.textContent = formatCurrency(totalExpenses);
-  balanceTotal.textContent = formatCurrency(balance);
-}
-
-function updateCardTotal(card) {
-  const expenseInputs = [...card.querySelectorAll(".expense-value")];
-  const total = expenseInputs.reduce((sum, input) => sum + parseCurrencyInput(input.value), 0);
-
-  card.dataset.total = String(total);
-  card.querySelector(".card-total-input").value = formatCurrency(total);
-
-  updateSummary();
-  saveAppState();
-}
-
-function addExpenseRow(card, expense = { description: "", value: "" }) {
-  const rowFragment = expenseRowTemplate.content.cloneNode(true);
-  const row = rowFragment.querySelector(".expense-row");
-  const descriptionInput = row.querySelector(".expense-description");
-  const valueInput = row.querySelector(".expense-value");
-  const removeButton = row.querySelector(".remove-expense-button");
-
-  descriptionInput.value = expense.description;
-  valueInput.value = expense.value;
-
-  descriptionInput.addEventListener("input", saveAppState);
-  valueInput.addEventListener("input", () => updateCardTotal(card));
-  removeButton.addEventListener("click", () => {
-    row.remove();
-    updateCardTotal(card);
-  });
-
-  card.querySelector(".expenses-list").appendChild(row);
-}
-
-function wireCard(card) {
-  const colorInput = card.querySelector(".card-color-input");
-  const addExpenseButton = card.querySelector(".add-expense-button");
-  const nameInput = card.querySelector(".card-name-input");
-  const menuButton = card.querySelector(".card-menu-button");
-  const menuPanel = card.querySelector(".card-menu-panel");
-  const deleteCardButton = card.querySelector(".card-delete-button");
-
-  colorInput.addEventListener("input", (event) => {
-    card.style.setProperty("--card-color", event.target.value);
-    saveAppState();
-  });
-
-  addExpenseButton.addEventListener("click", () => {
-    addExpenseRow(card);
-    saveAppState();
-  });
-
-  nameInput.addEventListener("input", saveAppState);
-  menuButton.addEventListener("click", () => {
-    const isHidden = menuPanel.hasAttribute("hidden");
-    document.querySelectorAll(".card-menu-panel").forEach((panel) => {
-      panel.setAttribute("hidden", "");
-    });
-
-    if (isHidden) {
-      menuPanel.removeAttribute("hidden");
-    }
-  });
-
-  document.addEventListener("click", (event) => {
-    if (!card.contains(event.target)) {
-      menuPanel.setAttribute("hidden", "");
-    }
-  });
-
-  deleteCardButton.addEventListener("click", () => {
-    card.remove();
-    updateSummary();
-    saveAppState();
-  });
-
-  card.style.setProperty("--card-color", colorInput.value);
-  updateCardTotal(card);
-}
-
-function createCard(cardName, color, expenses = []) {
-  const cardFragment = cardTemplate.content.cloneNode(true);
-  const card = cardFragment.querySelector(".finance-card");
-  const nameInput = card.querySelector(".card-name-input");
-  const colorInput = card.querySelector(".card-color-input");
-
-  nameInput.value = cardName;
-  colorInput.value = color;
-
-  cardsContainer.appendChild(card);
-  wireCard(card);
-
-  if (expenses.length > 0) {
-    card.querySelector(".expenses-list").innerHTML = "";
-    expenses.forEach((expense) => addExpenseRow(card, expense));
-  } else {
-    addExpenseRow(card);
-    addExpenseRow(card);
-  }
-
-  updateCardTotal(card);
-}
-
-function createDefaultCards() {
-  createCard("Cartao Principal", "#1f8a70");
-  createCard("Cartao Reserva", "#f97316");
-}
-
-addCardButton.addEventListener("click", () => {
-  const palette = ["#1f8a70", "#3b82f6", "#f97316", "#e11d48", "#8b5cf6", "#0f766e"];
-  const nextColor = palette[document.querySelectorAll(".finance-card").length % palette.length];
-  createCard(`Cartao ${document.querySelectorAll(".finance-card").length + 1}`, nextColor);
-  saveAppState();
-});
-
-salaryInput.addEventListener("input", () => {
-  updateSummary();
-  saveAppState();
-});
-
-benefitsInput.addEventListener("input", () => {
-  updateSummary();
-  saveAppState();
-});
-
-monthNote.addEventListener("input", saveAppState);
-
-if (!loadAppState()) {
-  createDefaultCards();
-  updateSummary();
-  saveAppState();
-}
-
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./service-worker.js").catch((error) => {
-      console.error("Falha ao registrar o service worker:", error);
-    });
-  });
-}
+function getMonthData(monthIndex = appState.activeMonthIndex) {
+  return appState.m
