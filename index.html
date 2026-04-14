@@ -67,6 +67,23 @@
       </div>
     </section>
 
+    <section class="month-planner">
+      <div class="month-planner-head">
+        <div>
+          <p class="section-label">Meses do Ano</p>
+          <h2>Planejamento mensal</h2>
+        </div>
+
+        <div class="month-actions">
+          <button id="exportBackupButton" class="ghost-button" type="button">Exportar backup</button>
+          <button id="importBackupButton" class="secondary-button" type="button">Importar backup</button>
+          <input id="importBackupInput" type="file" accept="application/json" hidden>
+        </div>
+      </div>
+
+      <div id="monthTabs" class="month-tabs"></div>
+    </section>
+
     <section class="toolbar">
       <div>
         <p class="section-label">Cartoes</p>
@@ -101,6 +118,8 @@
       <div class="expense-list-header">
         <span>Descricao</span>
         <span>Valor</span>
+        <span>Parcelas</span>
+        <span>Recorrencia</span>
       </div>
 
       <div class="expenses-list"></div>
@@ -120,9 +139,31 @@
 
   <template id="expenseRowTemplate">
     <div class="expense-row">
-      <input class="expense-description" type="text" placeholder="Ex.: Mercado, combustivel, assinatura">
-      <input class="expense-value" type="number" min="0" step="0.01" placeholder="0,00">
+      <label class="expense-field expense-description-field">
+        <span>Descricao</span>
+        <input class="expense-description" type="text" placeholder="Ex.: Mercado, combustivel, assinatura">
+      </label>
+
+      <label class="expense-field expense-value-field">
+        <span>Valor</span>
+        <input class="expense-value" type="number" min="0" step="0.01" placeholder="0,00">
+      </label>
+
+      <label class="expense-field expense-installments-field">
+        <span>Parcelas</span>
+        <input class="expense-installments" type="number" min="1" max="12" step="1" value="1">
+      </label>
+
+      <label class="expense-fixed-toggle">
+        <span>Recorrencia</span>
+        <span class="expense-fixed-toggle-control">
+          <input class="expense-fixed" type="checkbox">
+          <span>Fixo todo mes</span>
+        </span>
+      </label>
+
       <button class="remove-expense-button" type="button" aria-label="Remover gasto">Remover</button>
+      <div class="expense-badge">Gasto avulso</div>
     </div>
   </template>
 
