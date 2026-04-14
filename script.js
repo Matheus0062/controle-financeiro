@@ -258,4 +258,363 @@ function loadAppState() {
 }
 
 function getMonthData(monthIndex = appState.activeMonthIndex) {
-  return appState.m
+  return appState.months[monthIndex];
+}
+
+function getMonthDistance(startMonthIndex, targetMonthIndex) {
+  return (targetMonthIndex - startMonthIndex + 12) % 12;
+}
+
+function getExpenseOccurrence(expense, monthIndex = appState.activeMonthIndex) {
+  if (expense.isFixed) {
+    return {
+      isVisible: true,
+      label: "Fixo mensal"
+    };
+  }
+
+  const distance = getMonthDistance(expense.startMonthIndex, monthIndex);
+
+  if (distance < expense.installmentCount) {
+    return {
+      isVisible: true,
+      label: expense.installmentCount > 1
+        ? `Parcela ${distance + 1}/${expense.installmentCount}`
+        : "Gasto avulso"
+    };
+  }
+
+  return {
+    isVisible: false,
+    label: ""
+  };
+}
+
+function getVisibleExpensesForCard(cardId, monthIndex = appState.activeMonthIndex) {
+  return appState.expenses
+    .filter((expense) => expense.cardId === cardId)
+    .map((expense) => ({
+      expense,
+      occurrence: getExpenseOccurrence(expense, monthIndex)
+    }))
+    .filter(({ occurrence }) => occurrence.isVisible);
+}
+
+function getCardTotal(cardId, monthIndex = appState.activeMonthIndex) {
+  return getVisibleExpensesForCard(cardId, monthIndex).reduce(
+    (sum, { expense }) => sum + parseCurrencyInput(expense.value),
+    0
+  );
+}
+
+function updateSummary() {
+  const monthData = getMonthData();
+  const totalIncome = parseCurrencyInput(monthData.salary) + parseCurrencyInput(monthData.benefits);
+  const totalExpenses = appState.cards.reduce((sum, card) => sum + getCardTotal(card.id), 0);
+  const balance = totalIncome - totalExpenses;
+
+  incomeTotal.textContent = formatCurrency(totalIncome);
+  expenseTotal.textContent = formatCurrency(totalExpenses);
+  balanceTotal.textContent = formatCurrency(balance);
+}
+
+function updateRenderedCardTotals() {
+  document.querySelectorAll(".finance-card").forEach((cardElement) => {
+    const cardId = cardElement.dataset.cardId;
+    const totalInput = cardElement.querySelector(".card-total-input");
+
+    if (totalInput) {
+      totalInput.value = formatCurrency(getCardTotal(cardId));
+    }
+  });
+
+  updateSummary();
+}
+
+function renderMonthFields() {
+  const monthData = getMonthData();
+  salaryInput.value = monthData.salary;
+  benefitsInput.value = monthData.benefits;
+  monthNote.value = monthData.note;
+}
+
+function renderMonthTabs() {
+  monthTabs.innerHTML = "";
+
+  MONTH_NAMES.forEach((monthName, index) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `month-tab${index === appState.activeMonthIndex ? " active" : ""}`;
+    button.textContent = monthName;
+    button.addEventListener("click", () => {
+      appState.activeMonthIndex = index;
+      renderAll();
+      saveAppState();
+    });
+
+    monthTabs.appendChild(button);
+  });
+}
+
+function updateCard(cardId, updates) {
+  const card = appState.cards.find((item) => item.id === cardId);
+
+  if (!card) {
+    return;
+  }
+
+  Object.assign(card, updates);
+}
+
+function updateExpense(expenseId, updates) {
+  const expense = appState.expenses.find((item) => item.id === expenseId);
+
+  if (!expense) {
+    return null;
+  }
+
+  Object.assign(expense, updates);
+
+  if (expense.isFixed) {
+    expense.installmentCount = 1;
+  } else {
+    expense.installmentCount = clampInstallments(expense.installmentCount);
+  }
+
+  return expense;
+}
+
+function removeExpense(expenseId) {
+  appState.expenses = appState.expenses.filter((expense) => expense.id !== expenseId);
+}
+
+function removeCard(cardId) {
+  appState.cards = appState.cards.filter((card) => card.id !== cardId);
+  appState.expenses = appState.expenses.filter((expense) => expense.cardId !== cardId);
+}
+
+function addExpenseRow(cardElement, expenseData, occurrence) {
+  const rowFragment = expenseRowTemplate.content.cloneNode(true);
+  const row = rowFragment.querySelector(".expense-row");
+  const descriptionInput = row.querySelector(".expense-description");
+  const valueInput = row.querySelector(".expense-value");
+  const installmentsInput = row.querySelector(".expense-installments");
+  const fixedInput = row.querySelector(".expense-fixed");
+  const removeButton = row.querySelector(".remove-expense-button");
+  const badge = row.querySelector(".expense-badge");
+
+  descriptionInput.value = expenseData.description;
+  valueInput.value = expenseData.value;
+  installmentsInput.value = expenseData.installmentCount;
+  installmentsInput.disabled = expenseData.isFixed;
+  fixedInput.checked = expenseData.isFixed;
+  badge.textContent = occurrence.label;
+
+  descriptionInput.addEventListener("input", (event) => {
+    updateExpense(expenseData.id, { description: event.target.value });
+    saveAppState();
+  });
+
+  valueInput.addEventListener("input", (event) => {
+    updateExpense(expenseData.id, { value: event.target.value });
+    updateRenderedCardTotals();
+    saveAppState();
+  });
+
+  installmentsInput.addEventListener("change", (event) => {
+    updateExpense(expenseData.id, {
+      installmentCount: clampInstallments(event.target.value),
+      isFixed: false
+    });
+    renderAll();
+    saveAppState();
+  });
+
+  fixedInput.addEventListener("change", (event) => {
+    updateExpense(expenseData.id, {
+      isFixed: event.target.checked,
+      installmentCount: event.target.checked ? 1 : expenseData.installmentCount
+    });
+    renderAll();
+    saveAppState();
+  });
+
+  removeButton.addEventListener("click", () => {
+    removeExpense(expenseData.id);
+    renderAll();
+    saveAppState();
+  });
+
+  cardElement.querySelector(".expenses-list").appendChild(row);
+}
+
+function wireCard(cardElement, cardData) {
+  const nameInput = cardElement.querySelector(".card-name-input");
+  const colorInput = cardElement.querySelector(".card-color-input");
+  const addExpenseButton = cardElement.querySelector(".add-expense-button");
+  const menuButton = cardElement.querySelector(".card-menu-button");
+  const menuPanel = cardElement.querySelector(".card-menu-panel");
+  const deleteCardButton = cardElement.querySelector(".card-delete-button");
+
+  nameInput.addEventListener("input", (event) => {
+    updateCard(cardData.id, { name: event.target.value });
+    saveAppState();
+  });
+
+  colorInput.addEventListener("input", (event) => {
+    updateCard(cardData.id, { color: event.target.value });
+    cardElement.style.setProperty("--card-color", event.target.value);
+    saveAppState();
+  });
+
+  addExpenseButton.addEventListener("click", () => {
+    appState.expenses.push(createExpenseData(cardData.id, appState.activeMonthIndex));
+    renderAll();
+    saveAppState();
+  });
+
+  menuButton.addEventListener("click", (event) => {
+    event.stopPropagation();
+    const isHidden = menuPanel.hasAttribute("hidden");
+
+    document.querySelectorAll(".card-menu-panel").forEach((panel) => {
+      panel.setAttribute("hidden", "");
+    });
+
+    if (isHidden) {
+      menuPanel.removeAttribute("hidden");
+    }
+  });
+
+  deleteCardButton.addEventListener("click", () => {
+    removeCard(cardData.id);
+    renderAll();
+    saveAppState();
+  });
+}
+
+function renderCards() {
+  cardsContainer.innerHTML = "";
+
+  appState.cards.forEach((cardData) => {
+    const cardFragment = cardTemplate.content.cloneNode(true);
+    const cardElement = cardFragment.querySelector(".finance-card");
+    const nameInput = cardElement.querySelector(".card-name-input");
+    const colorInput = cardElement.querySelector(".card-color-input");
+    const totalInput = cardElement.querySelector(".card-total-input");
+    const expensesList = cardElement.querySelector(".expenses-list");
+    const visibleExpenses = getVisibleExpensesForCard(cardData.id);
+
+    cardElement.dataset.cardId = cardData.id;
+    cardElement.style.setProperty("--card-color", cardData.color);
+    nameInput.value = cardData.name;
+    colorInput.value = cardData.color;
+    totalInput.value = formatCurrency(getCardTotal(cardData.id));
+
+    wireCard(cardElement, cardData);
+
+    if (visibleExpenses.length === 0) {
+      const emptyMessage = document.createElement("p");
+      emptyMessage.className = "empty-expenses-message";
+      emptyMessage.textContent = "Nenhum gasto aparece neste mes ainda. Use Adicionar gasto para lancar um novo item.";
+      expensesList.appendChild(emptyMessage);
+    } else {
+      visibleExpenses.forEach(({ expense, occurrence }) => {
+        addExpenseRow(cardElement, expense, occurrence);
+      });
+    }
+
+    cardsContainer.appendChild(cardElement);
+  });
+}
+
+function renderAll() {
+  renderMonthTabs();
+  renderMonthFields();
+  renderCards();
+  updateSummary();
+}
+
+function exportBackup() {
+  const blob = new Blob([JSON.stringify(appState, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "controle-financeiro-backup.json";
+  link.click();
+
+  setTimeout(() => {
+    URL.revokeObjectURL(url);
+  }, 2000);
+}
+
+function importBackup(file) {
+  if (!file) {
+    return;
+  }
+
+  file.text()
+    .then((content) => {
+      appState = normalizeState(JSON.parse(content));
+      renderAll();
+      saveAppState();
+      importBackupInput.value = "";
+    })
+    .catch((error) => {
+      console.error("Falha ao importar backup:", error);
+      window.alert("Nao foi possivel importar este backup. Verifique se o arquivo JSON esta valido.");
+      importBackupInput.value = "";
+    });
+}
+
+salaryInput.addEventListener("input", (event) => {
+  getMonthData().salary = event.target.value;
+  updateSummary();
+  saveAppState();
+});
+
+benefitsInput.addEventListener("input", (event) => {
+  getMonthData().benefits = event.target.value;
+  updateSummary();
+  saveAppState();
+});
+
+monthNote.addEventListener("input", (event) => {
+  getMonthData().note = event.target.value;
+  saveAppState();
+});
+
+addCardButton.addEventListener("click", () => {
+  const nextColor = CARD_COLORS[appState.cards.length % CARD_COLORS.length];
+  const cardData = createCardData(`Cartao ${appState.cards.length + 1}`, nextColor);
+
+  appState.cards.push(cardData);
+  appState.expenses.push(...createBlankExpenses(cardData.id, appState.activeMonthIndex));
+  renderAll();
+  saveAppState();
+});
+
+exportBackupButton.addEventListener("click", exportBackup);
+importBackupButton.addEventListener("click", () => importBackupInput.click());
+importBackupInput.addEventListener("change", (event) => {
+  importBackup(event.target.files[0]);
+});
+
+document.addEventListener("click", (event) => {
+  if (!event.target.closest(".card-menu")) {
+    document.querySelectorAll(".card-menu-panel").forEach((panel) => {
+      panel.setAttribute("hidden", "");
+    });
+  }
+});
+
+loadAppState();
+renderAll();
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./service-worker.js").catch((error) => {
+      console.error("Falha ao registrar o service worker:", error);
+    });
+  });
+}
