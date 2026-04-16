@@ -9,12 +9,15 @@ const expenseTotal = document.getElementById("expenseTotal");
 const balanceTotal = document.getElementById("balanceTotal");
 const monthNote = document.getElementById("monthNote");
 const monthTabs = document.getElementById("monthTabs");
+const activeYearLabel = document.getElementById("activeYearLabel");
+const previousYearButton = document.getElementById("previousYearButton");
+const nextYearButton = document.getElementById("nextYearButton");
 const exportBackupButton = document.getElementById("exportBackupButton");
 const importBackupButton = document.getElementById("importBackupButton");
 const importBackupInput = document.getElementById("importBackupInput");
 
 const STORAGE_KEY = "controle-financeiro-pessoal-v1";
-const APP_VERSION = 2;
+const APP_VERSION = 3;
 const MONTH_NAMES = [
   "Janeiro",
   "Fevereiro",
@@ -60,7 +63,17 @@ function clampMonthIndex(value) {
     return 0;
   }
 
-  return ((parsed % 12) + 12) % 12;
+  return Math.max(0, Math.min(11, parsed));
+}
+
+function clampYear(value, fallback = new Date().getFullYear()) {
+  const parsed = Number.parseInt(value, 10);
+
+  if (!Number.isFinite(parsed)) {
+    return fallback;
+  }
+
+  return Math.max(2000, Math.min(2100, parsed));
 }
 
 function clampInstallments(value) {
@@ -70,7 +83,7 @@ function clampInstallments(value) {
     return 1;
   }
 
-  return Math.max(1, Math.min(12, parsed));
+  return Math.max(1, Math.min(48, parsed));
 }
 
 function normalizeInputValue(value, fallback = "") {
@@ -85,15 +98,36 @@ function normalizeInputValue(value, fallback = "") {
   return fallback;
 }
 
-function getDefaultNote(monthIndex) {
-  return `Previsao de saldo para o mes de ${MONTH_NAMES[monthIndex]}`;
+function periodToSerial(year, monthIndex) {
+  return year * 12 + monthIndex;
 }
 
-function createMonthData(monthIndex, source = {}) {
+function buildPeriodKey(year, monthIndex) {
+  return `${year}-${String(monthIndex + 1).padStart(2, "0")}`;
+}
+
+function parsePeriodKey(key) {
+  const match = /^(\d{4})-(\d{2})$/.exec(key);
+
+  if (!match) {
+    return null;
+  }
+
+  const year = clampYear(match[1]);
+  const monthIndex = clampMonthIndex(Number.parseInt(match[2], 10) - 1);
+
+  return { year, monthIndex };
+}
+
+function getDefaultNote(year, monthIndex) {
+  return `Previsao de saldo para ${MONTH_NAMES[monthIndex]} de ${year}`;
+}
+
+function createPeriodData(year, monthIndex, source = {}) {
   return {
     salary: normalizeInputValue(source.salary),
     benefits: normalizeInputValue(source.benefits),
-    note: normalizeInputValue(source.note, getDefaultNote(monthIndex))
+    note: normalizeInputValue(source.note, getDefaultNote(year, monthIndex))
   };
 }
 
@@ -105,7 +139,7 @@ function createCardData(name, color, id = createId("card")) {
   };
 }
 
-function createExpenseData(cardId, startMonthIndex, source = {}) {
+function createExpenseData(cardId, startYear, startMonthIndex, source = {}) {
   const isFixed = Boolean(source.isFixed);
 
   return {
@@ -115,18 +149,24 @@ function createExpenseData(cardId, startMonthIndex, source = {}) {
     value: normalizeInputValue(source.value),
     installmentCount: isFixed ? 1 : clampInstallments(source.installmentCount || 1),
     isFixed,
+    startYear: clampYear(
+      typeof source.startYear === "number" ? source.startYear : startYear,
+      startYear
+    ),
     startMonthIndex: clampMonthIndex(
       typeof source.startMonthIndex === "number" ? source.startMonthIndex : startMonthIndex
     )
   };
 }
 
-function createBlankExpenses(cardId, monthIndex, count = 2) {
-  return Array.from({ length: count }, () => createExpenseData(cardId, monthIndex));
+function createBlankExpenses(cardId, startYear, startMonthIndex, count = 2) {
+  return Array.from({ length: count }, () => createExpenseData(cardId, startYear, startMonthIndex));
 }
 
 function createDefaultState() {
-  const currentMonthIndex = new Date().getMonth();
+  const now = new Date();
+  const activeYear = now.getFullYear();
+  const activeMonthIndex = now.getMonth();
   const defaultCards = [
     createCardData("Cartao Principal", "#1f8a70"),
     createCardData("Cartao Reserva", "#f97316")
@@ -134,10 +174,13 @@ function createDefaultState() {
 
   return {
     version: APP_VERSION,
-    activeMonthIndex: currentMonthIndex,
-    months: MONTH_NAMES.map((_, index) => createMonthData(index)),
+    activeYear,
+    activeMonthIndex,
+    periodData: {
+      [buildPeriodKey(activeYear, activeMonthIndex)]: createPeriodData(activeYear, activeMonthIndex)
+    },
     cards: defaultCards,
-    expenses: defaultCards.flatMap((card) => createBlankExpenses(card.id, currentMonthIndex))
+    expenses: defaultCards.flatMap((card) => createBlankExpenses(card.id, activeYear, activeMonthIndex))
   };
 }
 
@@ -155,43 +198,78 @@ function normalizeCards(cards) {
   );
 }
 
-function normalizeExpenses(expenses, cardIds, activeMonthIndex) {
+function normalizePeriodData(sourcePeriodData = {}) {
+  const normalized = {};
+
+  if (!sourcePeriodData || typeof sourcePeriodData !== "object") {
+    return normalized;
+  }
+
+  Object.entries(sourcePeriodData).forEach(([key, value]) => {
+    const parsedPeriod = parsePeriodKey(key);
+
+    if (!parsedPeriod) {
+      return;
+    }
+
+    normalized[key] = createPeriodData(parsedPeriod.year, parsedPeriod.monthIndex, value);
+  });
+
+  return normalized;
+}
+
+function normalizeExpenses(expenses, cardIds, fallbackYear, fallbackMonthIndex) {
   if (!Array.isArray(expenses)) {
     return [];
   }
 
   return expenses
     .filter((expense) => cardIds.has(expense.cardId))
-    .map((expense) => createExpenseData(expense.cardId, activeMonthIndex, expense));
+    .map((expense) => createExpenseData(expense.cardId, fallbackYear, fallbackMonthIndex, expense));
 }
 
 function migrateLegacyState(state) {
-  const currentMonthIndex = new Date().getMonth();
-  const months = MONTH_NAMES.map((_, index) => createMonthData(index));
-  months[currentMonthIndex] = createMonthData(currentMonthIndex, {
-    salary: normalizeInputValue(state.salary),
-    benefits: normalizeInputValue(state.benefits),
-    note: normalizeInputValue(state.note, getDefaultNote(currentMonthIndex))
-  });
-
+  const now = new Date();
+  const fallbackYear = clampYear(state.activeYear ?? now.getFullYear(), now.getFullYear());
+  const activeMonthIndex = clampMonthIndex(state.activeMonthIndex ?? now.getMonth());
   const cards = normalizeCards(state.cards);
+  const periodData = {};
+
+  if (Array.isArray(state.months) && state.months.length > 0) {
+    state.months.forEach((monthData, index) => {
+      const monthIndex = clampMonthIndex(index);
+      periodData[buildPeriodKey(fallbackYear, monthIndex)] = createPeriodData(fallbackYear, monthIndex, monthData);
+    });
+  } else {
+    periodData[buildPeriodKey(fallbackYear, activeMonthIndex)] = createPeriodData(fallbackYear, activeMonthIndex, {
+      salary: normalizeInputValue(state.salary),
+      benefits: normalizeInputValue(state.benefits),
+      note: normalizeInputValue(state.note, getDefaultNote(fallbackYear, activeMonthIndex))
+    });
+  }
+
   const expenses = [];
 
-  state.cards.forEach((card, index) => {
-    const normalizedCard = cards[index];
-    const sourceExpenses = Array.isArray(card.expenses) && card.expenses.length > 0
-      ? card.expenses
-      : [{}, {}];
+  if (Array.isArray(state.expenses)) {
+    const cardIds = new Set(cards.map((card) => card.id));
+    expenses.push(...normalizeExpenses(state.expenses, cardIds, fallbackYear, activeMonthIndex));
+  } else if (Array.isArray(state.cards)) {
+    state.cards.forEach((card, index) => {
+      const normalizedCard = cards[index];
+      const sourceExpenses = Array.isArray(card.expenses) && card.expenses.length > 0
+        ? card.expenses
+        : [{}, {}];
 
-    sourceExpenses.forEach((expense) => {
-      expenses.push(
-        createExpenseData(normalizedCard.id, currentMonthIndex, {
-          description: normalizeInputValue(expense.description),
-          value: normalizeInputValue(expense.value)
-        })
-      );
+      sourceExpenses.forEach((expense) => {
+        expenses.push(
+          createExpenseData(normalizedCard.id, fallbackYear, activeMonthIndex, {
+            description: normalizeInputValue(expense.description),
+            value: normalizeInputValue(expense.value)
+          })
+        );
+      });
     });
-  });
+  }
 
   if (cards.length === 0) {
     return createDefaultState();
@@ -199,8 +277,9 @@ function migrateLegacyState(state) {
 
   return {
     version: APP_VERSION,
-    activeMonthIndex: currentMonthIndex,
-    months,
+    activeYear: fallbackYear,
+    activeMonthIndex,
+    periodData,
     cards,
     expenses
   };
@@ -211,18 +290,29 @@ function normalizeState(source) {
     return createDefaultState();
   }
 
-  if (Array.isArray(source.months) && Array.isArray(source.cards) && Array.isArray(source.expenses)) {
+  if (source.periodData && Array.isArray(source.cards) && Array.isArray(source.expenses)) {
+    const now = new Date();
+    const activeYear = clampYear(source.activeYear ?? now.getFullYear(), now.getFullYear());
+    const activeMonthIndex = clampMonthIndex(source.activeMonthIndex ?? now.getMonth());
     const cards = normalizeCards(source.cards);
-    const activeMonthIndex = clampMonthIndex(source.activeMonthIndex ?? new Date().getMonth());
-    const months = MONTH_NAMES.map((_, index) => createMonthData(index, source.months[index]));
     const cardIds = new Set(cards.map((card) => card.id));
-    const expenses = normalizeExpenses(source.expenses, cardIds, activeMonthIndex);
+    const periodData = normalizePeriodData(source.periodData);
+    const expenses = normalizeExpenses(source.expenses, cardIds, activeYear, activeMonthIndex);
+
+    if (cards.length === 0) {
+      return createDefaultState();
+    }
+
+    if (Object.keys(periodData).length === 0) {
+      periodData[buildPeriodKey(activeYear, activeMonthIndex)] = createPeriodData(activeYear, activeMonthIndex);
+    }
 
     return {
       version: APP_VERSION,
+      activeYear,
       activeMonthIndex,
-      months,
-      cards: cards.length > 0 ? cards : createDefaultState().cards,
+      periodData,
+      cards,
       expenses
     };
   }
@@ -257,23 +347,40 @@ function loadAppState() {
   }
 }
 
-function getMonthData(monthIndex = appState.activeMonthIndex) {
-  return appState.months[monthIndex];
+function getActivePeriodKey() {
+  return buildPeriodKey(appState.activeYear, appState.activeMonthIndex);
 }
 
-function getMonthDistance(startMonthIndex, targetMonthIndex) {
-  return (targetMonthIndex - startMonthIndex + 12) % 12;
+function getPeriodData(year = appState.activeYear, monthIndex = appState.activeMonthIndex) {
+  const key = buildPeriodKey(year, monthIndex);
+
+  if (!appState.periodData[key]) {
+    appState.periodData[key] = createPeriodData(year, monthIndex);
+  }
+
+  return appState.periodData[key];
 }
 
-function getExpenseOccurrence(expense, monthIndex = appState.activeMonthIndex) {
+function getMonthDistance(startYear, startMonthIndex, targetYear, targetMonthIndex) {
+  return periodToSerial(targetYear, targetMonthIndex) - periodToSerial(startYear, startMonthIndex);
+}
+
+function getExpenseOccurrence(expense, year = appState.activeYear, monthIndex = appState.activeMonthIndex) {
+  const distance = getMonthDistance(expense.startYear, expense.startMonthIndex, year, monthIndex);
+
+  if (distance < 0) {
+    return {
+      isVisible: false,
+      label: ""
+    };
+  }
+
   if (expense.isFixed) {
     return {
       isVisible: true,
       label: "Fixo mensal"
     };
   }
-
-  const distance = getMonthDistance(expense.startMonthIndex, monthIndex);
 
   if (distance < expense.installmentCount) {
     return {
@@ -290,27 +397,30 @@ function getExpenseOccurrence(expense, monthIndex = appState.activeMonthIndex) {
   };
 }
 
-function getVisibleExpensesForCard(cardId, monthIndex = appState.activeMonthIndex) {
+function getVisibleExpensesForCard(cardId, year = appState.activeYear, monthIndex = appState.activeMonthIndex) {
   return appState.expenses
     .filter((expense) => expense.cardId === cardId)
     .map((expense) => ({
       expense,
-      occurrence: getExpenseOccurrence(expense, monthIndex)
+      occurrence: getExpenseOccurrence(expense, year, monthIndex)
     }))
     .filter(({ occurrence }) => occurrence.isVisible);
 }
 
-function getCardTotal(cardId, monthIndex = appState.activeMonthIndex) {
-  return getVisibleExpensesForCard(cardId, monthIndex).reduce(
+function getCardTotal(cardId, year = appState.activeYear, monthIndex = appState.activeMonthIndex) {
+  return getVisibleExpensesForCard(cardId, year, monthIndex).reduce(
     (sum, { expense }) => sum + parseCurrencyInput(expense.value),
     0
   );
 }
 
 function updateSummary() {
-  const monthData = getMonthData();
-  const totalIncome = parseCurrencyInput(monthData.salary) + parseCurrencyInput(monthData.benefits);
-  const totalExpenses = appState.cards.reduce((sum, card) => sum + getCardTotal(card.id), 0);
+  const periodData = getPeriodData();
+  const totalIncome = parseCurrencyInput(periodData.salary) + parseCurrencyInput(periodData.benefits);
+  const totalExpenses = appState.cards.reduce(
+    (sum, card) => sum + getCardTotal(card.id, appState.activeYear, appState.activeMonthIndex),
+    0
+  );
   const balance = totalIncome - totalExpenses;
 
   incomeTotal.textContent = formatCurrency(totalIncome);
@@ -324,18 +434,19 @@ function updateRenderedCardTotals() {
     const totalInput = cardElement.querySelector(".card-total-input");
 
     if (totalInput) {
-      totalInput.value = formatCurrency(getCardTotal(cardId));
+      totalInput.value = formatCurrency(getCardTotal(cardId, appState.activeYear, appState.activeMonthIndex));
     }
   });
 
   updateSummary();
 }
 
-function renderMonthFields() {
-  const monthData = getMonthData();
-  salaryInput.value = monthData.salary;
-  benefitsInput.value = monthData.benefits;
-  monthNote.value = monthData.note;
+function renderPeriodFields() {
+  const periodData = getPeriodData();
+  salaryInput.value = periodData.salary;
+  benefitsInput.value = periodData.benefits;
+  monthNote.value = periodData.note;
+  activeYearLabel.textContent = String(appState.activeYear);
 }
 
 function renderMonthTabs() {
@@ -374,6 +485,9 @@ function updateExpense(expenseId, updates) {
   }
 
   Object.assign(expense, updates);
+
+  expense.startYear = clampYear(expense.startYear, appState.activeYear);
+  expense.startMonthIndex = clampMonthIndex(expense.startMonthIndex);
 
   if (expense.isFixed) {
     expense.installmentCount = 1;
@@ -468,7 +582,7 @@ function wireCard(cardElement, cardData) {
   });
 
   addExpenseButton.addEventListener("click", () => {
-    appState.expenses.push(createExpenseData(cardData.id, appState.activeMonthIndex));
+    appState.expenses.push(createExpenseData(cardData.id, appState.activeYear, appState.activeMonthIndex));
     renderAll();
     saveAppState();
   });
@@ -503,20 +617,20 @@ function renderCards() {
     const colorInput = cardElement.querySelector(".card-color-input");
     const totalInput = cardElement.querySelector(".card-total-input");
     const expensesList = cardElement.querySelector(".expenses-list");
-    const visibleExpenses = getVisibleExpensesForCard(cardData.id);
+    const visibleExpenses = getVisibleExpensesForCard(cardData.id, appState.activeYear, appState.activeMonthIndex);
 
     cardElement.dataset.cardId = cardData.id;
     cardElement.style.setProperty("--card-color", cardData.color);
     nameInput.value = cardData.name;
     colorInput.value = cardData.color;
-    totalInput.value = formatCurrency(getCardTotal(cardData.id));
+    totalInput.value = formatCurrency(getCardTotal(cardData.id, appState.activeYear, appState.activeMonthIndex));
 
     wireCard(cardElement, cardData);
 
     if (visibleExpenses.length === 0) {
       const emptyMessage = document.createElement("p");
       emptyMessage.className = "empty-expenses-message";
-      emptyMessage.textContent = "Nenhum gasto aparece neste mes ainda. Use Adicionar gasto para lancar um novo item.";
+      emptyMessage.textContent = "Nenhum gasto aparece neste periodo ainda. Selecione o ano correto ou use Adicionar gasto para lancar um novo item.";
       expensesList.appendChild(emptyMessage);
     } else {
       visibleExpenses.forEach(({ expense, occurrence }) => {
@@ -529,8 +643,9 @@ function renderCards() {
 }
 
 function renderAll() {
+  getPeriodData();
+  renderPeriodFields();
   renderMonthTabs();
-  renderMonthFields();
   renderCards();
   updateSummary();
 }
@@ -568,19 +683,31 @@ function importBackup(file) {
 }
 
 salaryInput.addEventListener("input", (event) => {
-  getMonthData().salary = event.target.value;
+  getPeriodData().salary = event.target.value;
   updateSummary();
   saveAppState();
 });
 
 benefitsInput.addEventListener("input", (event) => {
-  getMonthData().benefits = event.target.value;
+  getPeriodData().benefits = event.target.value;
   updateSummary();
   saveAppState();
 });
 
 monthNote.addEventListener("input", (event) => {
-  getMonthData().note = event.target.value;
+  getPeriodData().note = event.target.value;
+  saveAppState();
+});
+
+previousYearButton.addEventListener("click", () => {
+  appState.activeYear -= 1;
+  renderAll();
+  saveAppState();
+});
+
+nextYearButton.addEventListener("click", () => {
+  appState.activeYear += 1;
+  renderAll();
   saveAppState();
 });
 
@@ -589,7 +716,7 @@ addCardButton.addEventListener("click", () => {
   const cardData = createCardData(`Cartao ${appState.cards.length + 1}`, nextColor);
 
   appState.cards.push(cardData);
-  appState.expenses.push(...createBlankExpenses(cardData.id, appState.activeMonthIndex));
+  appState.expenses.push(...createBlankExpenses(cardData.id, appState.activeYear, appState.activeMonthIndex));
   renderAll();
   saveAppState();
 });
@@ -625,7 +752,7 @@ if ("serviceWorker" in navigator) {
     });
 
     try {
-      const registration = await navigator.serviceWorker.register("./service-worker.js?v=14", {
+      const registration = await navigator.serviceWorker.register("./service-worker.js?v=15", {
         updateViaCache: "none"
       });
 
