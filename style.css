@@ -34,28 +34,19 @@ body {
 .app-shell {
   width: min(1200px, calc(100% - 32px));
   margin: 0 auto;
-  padding: 32px 0 56px;
+  padding: 20px 0 56px;
 }
 
 .hero {
-  display: grid;
-  grid-template-columns: 1.1fr 1fr;
-  gap: 24px;
-  align-items: stretch;
+  display: block;
 }
 
-.hero-copy,
 .summary-panel,
 .finance-card {
   backdrop-filter: blur(16px);
   background: var(--surface);
   border: 1px solid rgba(255, 255, 255, 0.7);
   box-shadow: var(--shadow);
-}
-
-.hero-copy {
-  padding: 34px;
-  border-radius: var(--radius-xl);
 }
 
 .eyebrow,
@@ -68,29 +59,49 @@ body {
   color: #a06a44;
 }
 
-.hero h1 {
-  margin: 0;
-  font-size: clamp(2rem, 4vw, 3.4rem);
-  line-height: 1.05;
-  max-width: 11ch;
-}
-
-.hero-text {
-  margin: 16px 0 0;
-  max-width: 56ch;
-  line-height: 1.6;
-  color: var(--muted);
-}
-
 .summary-panel {
-  padding: 24px;
-  border-radius: var(--radius-xl);
+  padding: 18px;
+  border-radius: 24px;
+}
+
+.summary-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.summary-head h1 {
+  margin: 0;
+  font-size: clamp(1.45rem, 2.4vw, 2rem);
+  line-height: 1.05;
+}
+
+.summary-head .eyebrow {
+  margin-bottom: 6px;
+  color: #165a4a;
+}
+
+.summary-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 9px 13px;
+  border-radius: 999px;
+  background: rgba(31, 138, 112, 0.1);
+  color: #165a4a;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .summary-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  grid-template-columns: 1.4fr repeat(4, minmax(0, 1fr));
+  gap: 10px;
 }
 
 .field-card,
@@ -99,8 +110,8 @@ body {
 .mini-total {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 16px 18px;
+  gap: 7px;
+  padding: 13px 14px;
   border-radius: var(--radius-md);
   background: rgba(255, 255, 255, 0.75);
   border: 1px solid rgba(31, 41, 55, 0.06);
@@ -117,7 +128,7 @@ body {
 }
 
 .result-card strong {
-  font-size: 1.5rem;
+  font-size: clamp(1.05rem, 1.8vw, 1.35rem);
 }
 
 .expense-highlight {
@@ -131,21 +142,35 @@ body {
 }
 
 .result-balance {
-  grid-column: 1 / -1;
+  grid-column: auto;
+  order: -1;
   background: linear-gradient(135deg, #183c32, #1f8a70);
   color: #ffffff;
+}
+
+.result-balance strong {
+  font-size: clamp(1.35rem, 2.4vw, 1.8rem);
 }
 
 .result-balance span {
   color: rgba(255, 255, 255, 0.78);
 }
 
+.field-card:first-child {
+  order: 3;
+}
+
+.field-card:nth-child(2) {
+  order: 4;
+}
+
 .note-card {
-  margin-top: 14px;
+  margin-top: 10px;
+  padding: 12px 14px;
 }
 
 .month-planner {
-  margin-top: 28px;
+  margin-top: 18px;
   padding: 24px;
   border-radius: var(--radius-xl);
   backdrop-filter: blur(16px);
@@ -286,7 +311,10 @@ input:focus {
 .secondary-button,
 .ghost-button,
 .remove-expense-button,
-.card-delete-button {
+.card-delete-button,
+.card-collapse-button,
+.edit-expense-button,
+.done-expense-button {
   border: 0;
   border-radius: 999px;
   font: inherit;
@@ -340,56 +368,111 @@ input:focus {
 .secondary-button:hover,
 .ghost-button:hover,
 .remove-expense-button:hover,
-.card-delete-button:hover {
+.card-delete-button:hover,
+.card-collapse-button:hover,
+.edit-expense-button:hover,
+.done-expense-button:hover {
   transform: translateY(-1px);
   opacity: 0.92;
 }
 
 .cards-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .finance-card {
-  padding: 20px;
-  border-radius: var(--radius-xl);
+  padding: 18px 20px 20px;
+  border-radius: 24px;
   position: relative;
   overflow: hidden;
+  transition: transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
+}
+
+.finance-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 22px 64px rgba(57, 51, 45, 0.16);
 }
 
 .finance-card::before {
   content: "";
   position: absolute;
   inset: 0 auto 0 0;
-  width: 7px;
+  width: 8px;
   background: var(--card-color, var(--accent));
 }
 
 .card-top {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  align-items: start;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, auto) auto auto;
+  gap: 14px;
+  align-items: center;
   position: relative;
 }
 
 .card-head {
-  flex: 1;
+  min-width: 0;
+}
+
+.card-bank-line {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.card-bank-mark {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  flex: 0 0 auto;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0)),
+    var(--card-color, var(--accent));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.38);
 }
 
 .card-name-input {
   border: 0;
   background: transparent;
   padding: 0;
-  font-size: 1.35rem;
+  min-width: 0;
+  font-size: 1.28rem;
   font-weight: 800;
 }
 
 .card-subtitle {
-  margin: 8px 0 0;
+  margin: 6px 0 0 54px;
   color: var(--muted);
   line-height: 1.5;
+  font-size: 0.92rem;
+}
+
+.card-metrics {
+  display: grid;
+  gap: 2px;
+  justify-items: end;
+  min-width: 178px;
+  padding: 10px 14px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(31, 41, 55, 0.07);
+}
+
+.card-metrics span,
+.card-metrics small {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.card-metrics strong {
+  color: var(--expense-text);
+  font-size: 1.28rem;
+  line-height: 1.1;
 }
 
 .card-menu {
@@ -407,6 +490,41 @@ input:focus {
   font-size: 26px;
   line-height: 1;
   cursor: pointer;
+}
+
+.card-collapse-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 126px;
+  min-height: 42px;
+  padding: 10px 14px;
+  background: rgba(31, 138, 112, 0.1);
+  color: #165a4a;
+}
+
+.card-collapse-icon {
+  width: 9px;
+  height: 9px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg) translateY(-2px);
+  transition: transform 180ms ease;
+}
+
+.finance-card.is-collapsed .card-collapse-icon {
+  transform: rotate(-45deg);
+}
+
+.finance-card.is-collapsed {
+  padding-bottom: 18px;
+}
+
+.card-details {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(31, 41, 55, 0.08);
 }
 
 .card-menu-panel {
@@ -434,14 +552,8 @@ input:focus {
 }
 
 .expense-list-header {
-  display: grid;
-  grid-template-columns: minmax(0, 1.8fr) minmax(0, 0.72fr) minmax(0, 0.5fr) minmax(0, 0.95fr) 106px;
-  gap: 8px;
-  align-items: center;
-}
-
-.expense-list-header {
-  margin: 18px 0 8px;
+  display: none;
+  margin: 0;
   color: var(--muted);
   font-size: 13px;
   font-weight: 700;
@@ -454,22 +566,110 @@ input:focus {
 }
 
 .expense-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1.8fr) minmax(0, 0.72fr) minmax(0, 0.5fr) minmax(0, 0.95fr) 106px;
-  gap: 8px;
-  align-items: end;
-  padding: 14px;
+  display: block;
+  padding: 0;
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.82);
   border: 1px solid rgba(31, 41, 55, 0.08);
+  overflow: hidden;
+  transition: border-color 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
+}
+
+.expense-row.is-editing {
+  background: rgba(255, 255, 255, 0.96);
+  border-color: rgba(31, 138, 112, 0.2);
+  box-shadow: 0 14px 30px rgba(31, 41, 55, 0.08);
+}
+
+.expense-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  min-height: 68px;
+  padding: 12px 14px 12px 16px;
+}
+
+.expense-summary-main {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.expense-summary-description {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 0.98rem;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.expense-summary-side {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.expense-summary-value {
+  color: var(--expense-text);
+  font-size: 1rem;
+  white-space: nowrap;
+}
+
+.edit-expense-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  background: rgba(31, 138, 112, 0.1);
+  color: #165a4a;
+  font-size: 1.18rem;
+}
+
+.expense-row.is-editing .edit-expense-button {
+  background: #1c5c4c;
+  color: #fff;
+}
+
+.expense-editor {
+  display: grid;
+  gap: 16px;
+  max-height: 0;
+  padding: 0 28px;
+  opacity: 0;
+  overflow: hidden;
+  transform: translateY(-8px);
+  transition: max-height 260ms ease, opacity 200ms ease, padding 260ms ease, transform 260ms ease;
+}
+
+.expense-row.is-editing .expense-editor {
+  max-height: 620px;
+  padding: 8px 28px 28px;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.expense-editor-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
 }
 
 .expense-row input {
-  background: #fff;
+  background: #f8fafc;
+  min-height: 54px;
+  border-radius: 16px;
+  font-weight: 700;
 }
 
 .expense-row > *,
-.expense-list-header > * {
+.expense-list-header > *,
+.expense-summary > *,
+.expense-editor > * {
   min-width: 0;
 }
 
@@ -496,15 +696,14 @@ input:focus {
 .expense-fixed-toggle > span:first-child {
   font-size: 12px;
   font-weight: 800;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--muted);
-  display: none !important;
 }
 
 .expense-fixed-toggle {
-  padding: 10px 14px;
-  border-radius: 14px;
+  padding: 18px 20px;
+  border-radius: 20px;
   background: rgba(255, 255, 255, 0.92);
   border: 1px solid rgba(31, 41, 55, 0.1);
   min-height: 100%;
@@ -514,8 +713,9 @@ input:focus {
 .expense-fixed-toggle-control {
   display: flex;
   align-items: center;
-  gap: 10px;
-  font-weight: 700;
+  gap: 12px;
+  font-size: 1.1rem;
+  font-weight: 800;
   color: var(--text);
 }
 
@@ -527,16 +727,29 @@ input:focus {
 }
 
 .expense-badge {
-  grid-column: 1 / -1;
   justify-self: start;
-  padding: 9px 12px;
+  width: fit-content;
+  padding: 7px 10px;
   border-radius: 999px;
   background: rgba(31, 138, 112, 0.1);
   color: #165a4a;
-  font-size: 12px;
+  font-size: 0.72rem;
   font-weight: 800;
   letter-spacing: 0.03em;
   text-transform: uppercase;
+}
+
+.expense-editor-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.done-expense-button {
+  padding: 12px 14px;
+  min-height: 52px;
+  background: rgba(31, 138, 112, 0.1);
+  color: #165a4a;
 }
 
 .empty-expenses-message {
@@ -575,8 +788,33 @@ input:focus {
 }
 
 @media (max-width: 900px) {
-  .hero {
-    grid-template-columns: 1fr;
+  .summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .result-balance {
+    grid-column: 1 / -1;
+  }
+
+  .card-top {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .card-metrics {
+    grid-column: 1 / -1;
+    justify-items: start;
+    width: 100%;
+  }
+
+  .card-collapse-button {
+    grid-column: 1 / 2;
+    justify-self: start;
+  }
+
+  .card-menu {
+    grid-column: 2 / 3;
+    grid-row: 1 / 2;
+    justify-self: end;
   }
 
   .month-planner-head {
@@ -591,19 +829,67 @@ input:focus {
 @media (max-width: 640px) {
   .app-shell {
     width: min(100% - 20px, 100%);
-    padding-top: 20px;
+    padding-top: 12px;
+  }
+
+  .summary-panel {
+    padding: 14px;
+    border-radius: 20px;
+  }
+
+  .summary-head {
+    align-items: flex-start;
+    margin-bottom: 12px;
+  }
+
+  .summary-head h1 {
+    font-size: 1.35rem;
+  }
+
+  .summary-pill {
+    min-height: 32px;
+    padding: 8px 10px;
+    font-size: 11px;
   }
 
   .summary-grid,
   .card-footer,
-  .card-top,
   .month-planner-head,
   .toolbar {
     grid-template-columns: 1fr;
   }
 
+  .summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .result-balance {
+    grid-column: 1 / -1;
+  }
+
+  .field-card,
+  .result-card,
+  .note-card,
+  .mini-total {
+    padding: 12px;
+  }
+
+  .field-card span,
+  .result-card span,
+  .note-card span,
+  .mini-total span,
+  .card-menu-color-field span {
+    font-size: 12px;
+  }
+
+  .field-card input,
+  .note-card input {
+    min-height: 44px;
+    padding: 10px 12px;
+  }
+
   .toolbar,
-  .card-top,
   .month-planner-head {
     display: grid;
     align-items: stretch;
@@ -660,14 +946,29 @@ input:focus {
     padding: 18px;
   }
 
+  .card-top {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px;
+  }
+
+  .card-bank-mark {
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+  }
+
+  .card-name-input {
+    font-size: 1.15rem;
+  }
+
   .card-subtitle {
+    margin-left: 50px;
     margin-right: 8px;
+    font-size: 0.88rem;
   }
 
   .card-menu {
-    position: absolute;
-    top: 0;
-    right: 0;
+    position: relative;
   }
 
   .card-menu-button {
@@ -675,17 +976,60 @@ input:focus {
     height: 46px;
   }
 
+  .card-metrics {
+    min-width: 0;
+    padding: 12px 14px;
+  }
+
+  .card-metrics strong {
+    font-size: 1.2rem;
+  }
+
+  .card-collapse-button {
+    width: 100%;
+  }
+
   .expenses-list {
     gap: 14px;
   }
 
   .expense-row {
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-    padding: 14px;
-    border-radius: 20px;
+    padding: 0;
+    border-radius: 18px;
     background: rgba(255, 253, 252, 0.96);
     box-shadow: 0 10px 22px rgba(31, 41, 55, 0.05);
+  }
+
+  .expense-summary {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .expense-summary-side {
+    gap: 8px;
+  }
+
+  .expense-summary-value {
+    font-size: 0.94rem;
+  }
+
+  .edit-expense-button {
+    width: 38px;
+    height: 38px;
+  }
+
+  .expense-editor {
+    padding: 0 14px;
+  }
+
+  .expense-row.is-editing .expense-editor {
+    padding: 8px 14px 16px;
+  }
+
+  .expense-editor-grid,
+  .expense-editor-actions {
+    grid-template-columns: 1fr;
   }
 
   .expense-description-field {
@@ -733,18 +1077,18 @@ input:focus {
 
   .expense-fixed-toggle {
     grid-column: 1 / -1;
+    padding: 16px;
   }
 
   .expense-row .remove-expense-button {
-    grid-column: 1 / -1;
     min-height: 52px;
     font-size: 1rem;
   }
 
   .expense-badge {
-    width: 100%;
-    justify-self: stretch;
-    text-align: center;
+    width: fit-content;
+    justify-self: start;
+    text-align: left;
   }
 
   .result-balance {

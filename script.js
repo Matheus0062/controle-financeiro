@@ -35,6 +35,7 @@ const MONTH_NAMES = [
 const CARD_COLORS = ["#1f8a70", "#3b82f6", "#f97316", "#e11d48", "#8b5cf6", "#0f766e"];
 
 let appState = null;
+const editingExpenseByCard = {};
 
 function formatCurrency(value) {
   return new Intl.NumberFormat("pt-BR", {
@@ -131,11 +132,12 @@ function createPeriodData(year, monthIndex, source = {}) {
   };
 }
 
-function createCardData(name, color, id = createId("card")) {
+function createCardData(name, color, id = createId("card"), isCollapsed = false) {
   return {
     id,
     name: typeof name === "string" ? name : "",
-    color
+    color,
+    isCollapsed: Boolean(isCollapsed)
   };
 }
 
@@ -193,7 +195,8 @@ function normalizeCards(cards) {
     createCardData(
       card.name || `Cartao ${index + 1}`,
       card.color || CARD_COLORS[index % CARD_COLORS.length],
-      card.id || createId("card")
+      card.id || createId("card"),
+      card.isCollapsed
     )
   );
 }
@@ -432,9 +435,21 @@ function updateRenderedCardTotals() {
   document.querySelectorAll(".finance-card").forEach((cardElement) => {
     const cardId = cardElement.dataset.cardId;
     const totalInput = cardElement.querySelector(".card-total-input");
+    const totalValue = cardElement.querySelector(".card-total-value");
+    const countValue = cardElement.querySelector(".card-count-value");
+    const visibleExpenses = getVisibleExpensesForCard(cardId, appState.activeYear, appState.activeMonthIndex);
+    const formattedTotal = formatCurrency(getCardTotal(cardId, appState.activeYear, appState.activeMonthIndex));
 
     if (totalInput) {
-      totalInput.value = formatCurrency(getCardTotal(cardId, appState.activeYear, appState.activeMonthIndex));
+      totalInput.value = formattedTotal;
+    }
+
+    if (totalValue) {
+      totalValue.textContent = formattedTotal;
+    }
+
+    if (countValue) {
+      countValue.textContent = `${visibleExpenses.length} ${visibleExpenses.length === 1 ? "gasto" : "gastos"}`;
     }
   });
 
@@ -499,12 +514,34 @@ function updateExpense(expenseId, updates) {
 }
 
 function removeExpense(expenseId) {
+  const expense = appState.expenses.find((item) => item.id === expenseId);
+
+  if (expense && editingExpenseByCard[expense.cardId] === expenseId) {
+    delete editingExpenseByCard[expense.cardId];
+  }
+
   appState.expenses = appState.expenses.filter((expense) => expense.id !== expenseId);
 }
 
 function removeCard(cardId) {
+  delete editingExpenseByCard[cardId];
   appState.cards = appState.cards.filter((card) => card.id !== cardId);
   appState.expenses = appState.expenses.filter((expense) => expense.cardId !== cardId);
+}
+
+function getExpenseDescriptionLabel(expense) {
+  const description = expense.description.trim();
+  return description || "Despesa sem descricao";
+}
+
+function syncExpenseSummary(row, expenseData, occurrence) {
+  const summaryDescription = row.querySelector(".expense-summary-description");
+  const summaryValue = row.querySelector(".expense-summary-value");
+  const badge = row.querySelector(".expense-badge");
+
+  summaryDescription.textContent = getExpenseDescriptionLabel(expenseData);
+  summaryValue.textContent = formatCurrency(parseCurrencyInput(expenseData.value));
+  badge.textContent = occurrence.label;
 }
 
 function addExpenseRow(cardElement, expenseData, occurrence) {
@@ -515,22 +552,28 @@ function addExpenseRow(cardElement, expenseData, occurrence) {
   const installmentsInput = row.querySelector(".expense-installments");
   const fixedInput = row.querySelector(".expense-fixed");
   const removeButton = row.querySelector(".remove-expense-button");
-  const badge = row.querySelector(".expense-badge");
+  const editButton = row.querySelector(".edit-expense-button");
+  const doneButton = row.querySelector(".done-expense-button");
+  const isEditing = editingExpenseByCard[expenseData.cardId] === expenseData.id;
 
   descriptionInput.value = expenseData.description;
   valueInput.value = expenseData.value;
   installmentsInput.value = expenseData.installmentCount;
   installmentsInput.disabled = expenseData.isFixed;
   fixedInput.checked = expenseData.isFixed;
-  badge.textContent = occurrence.label;
+  row.classList.toggle("is-editing", isEditing);
+  editButton.setAttribute("aria-expanded", String(isEditing));
+  syncExpenseSummary(row, expenseData, occurrence);
 
   descriptionInput.addEventListener("input", (event) => {
-    updateExpense(expenseData.id, { description: event.target.value });
+    const updatedExpense = updateExpense(expenseData.id, { description: event.target.value });
+    syncExpenseSummary(row, updatedExpense, occurrence);
     saveAppState();
   });
 
   valueInput.addEventListener("input", (event) => {
-    updateExpense(expenseData.id, { value: event.target.value });
+    const updatedExpense = updateExpense(expenseData.id, { value: event.target.value });
+    syncExpenseSummary(row, updatedExpense, occurrence);
     updateRenderedCardTotals();
     saveAppState();
   });
@@ -553,6 +596,21 @@ function addExpenseRow(cardElement, expenseData, occurrence) {
     saveAppState();
   });
 
+  editButton.addEventListener("click", () => {
+    if (isEditing) {
+      delete editingExpenseByCard[expenseData.cardId];
+    } else {
+      editingExpenseByCard[expenseData.cardId] = expenseData.id;
+    }
+
+    renderAll();
+  });
+
+  doneButton.addEventListener("click", () => {
+    delete editingExpenseByCard[expenseData.cardId];
+    renderAll();
+  });
+
   removeButton.addEventListener("click", () => {
     removeExpense(expenseData.id);
     renderAll();
@@ -569,6 +627,7 @@ function wireCard(cardElement, cardData) {
   const menuButton = cardElement.querySelector(".card-menu-button");
   const menuPanel = cardElement.querySelector(".card-menu-panel");
   const deleteCardButton = cardElement.querySelector(".card-delete-button");
+  const collapseButton = cardElement.querySelector(".card-collapse-button");
 
   nameInput.addEventListener("input", (event) => {
     updateCard(cardData.id, { name: event.target.value });
@@ -582,7 +641,11 @@ function wireCard(cardElement, cardData) {
   });
 
   addExpenseButton.addEventListener("click", () => {
-    appState.expenses.push(createExpenseData(cardData.id, appState.activeYear, appState.activeMonthIndex));
+    const expenseData = createExpenseData(cardData.id, appState.activeYear, appState.activeMonthIndex);
+
+    appState.expenses.push(expenseData);
+    updateCard(cardData.id, { isCollapsed: false });
+    editingExpenseByCard[cardData.id] = expenseData.id;
     renderAll();
     saveAppState();
   });
@@ -605,6 +668,12 @@ function wireCard(cardElement, cardData) {
     renderAll();
     saveAppState();
   });
+
+  collapseButton.addEventListener("click", () => {
+    updateCard(cardData.id, { isCollapsed: !cardData.isCollapsed });
+    renderAll();
+    saveAppState();
+  });
 }
 
 function renderCards() {
@@ -615,15 +684,28 @@ function renderCards() {
     const cardElement = cardFragment.querySelector(".finance-card");
     const nameInput = cardElement.querySelector(".card-name-input");
     const colorInput = cardElement.querySelector(".card-color-input");
-    const totalInput = cardElement.querySelector(".card-total-input");
+    const totalValue = cardElement.querySelector(".card-total-value");
+    const countValue = cardElement.querySelector(".card-count-value");
+    const collapseButton = cardElement.querySelector(".card-collapse-button");
+    const collapseLabel = cardElement.querySelector(".card-collapse-label");
+    const cardDetails = cardElement.querySelector(".card-details");
     const expensesList = cardElement.querySelector(".expenses-list");
     const visibleExpenses = getVisibleExpensesForCard(cardData.id, appState.activeYear, appState.activeMonthIndex);
+    const cardTotal = getCardTotal(cardData.id, appState.activeYear, appState.activeMonthIndex);
+    const detailsId = `card-details-${cardData.id}`;
 
     cardElement.dataset.cardId = cardData.id;
     cardElement.style.setProperty("--card-color", cardData.color);
+    cardElement.classList.toggle("is-collapsed", cardData.isCollapsed);
     nameInput.value = cardData.name;
     colorInput.value = cardData.color;
-    totalInput.value = formatCurrency(getCardTotal(cardData.id, appState.activeYear, appState.activeMonthIndex));
+    totalValue.textContent = formatCurrency(cardTotal);
+    countValue.textContent = `${visibleExpenses.length} ${visibleExpenses.length === 1 ? "gasto" : "gastos"}`;
+    cardDetails.id = detailsId;
+    cardDetails.hidden = cardData.isCollapsed;
+    collapseButton.setAttribute("aria-controls", detailsId);
+    collapseButton.setAttribute("aria-expanded", String(!cardData.isCollapsed));
+    collapseLabel.textContent = cardData.isCollapsed ? "Expandir" : "Recolher";
 
     wireCard(cardElement, cardData);
 
@@ -752,7 +834,7 @@ if ("serviceWorker" in navigator) {
     });
 
     try {
-      const registration = await navigator.serviceWorker.register("./service-worker.js?v=15", {
+      const registration = await navigator.serviceWorker.register("./service-worker.js?v=18", {
         updateViaCache: "none"
       });
 

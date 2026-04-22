@@ -19,15 +19,15 @@
 <body>
   <main class="app-shell">
     <section class="hero">
-      <div class="hero-copy">
-        <p class="eyebrow">Planejamento Financeiro</p>
-        <h1>Controle seus gastos por cartao, acompanhe proventos e visualize o total do mes.</h1>
-        <p class="hero-text">
-          Adicione gastos individuais em cada cartao, personalize as cores e acompanhe sua previsao mensal em tempo real.
-        </p>
-      </div>
-
       <div class="summary-panel">
+        <div class="summary-head">
+          <div>
+            <p class="eyebrow">Meu Financeiro</p>
+            <h1>Resumo do mes</h1>
+          </div>
+          <span class="summary-pill">Planejamento ativo</span>
+        </div>
+
         <div class="summary-grid">
           <label class="field-card">
             <span>Salario do mes</span>
@@ -108,8 +108,17 @@
     <article class="finance-card">
       <div class="card-top">
         <div class="card-head">
-          <input class="card-name-input" type="text" value="Novo cartao" aria-label="Nome do cartao">
-          <p class="card-subtitle">Liste os gastos individuais e acompanhe a somatoria deste cartao.</p>
+          <div class="card-bank-line">
+            <span class="card-bank-mark" aria-hidden="true"></span>
+            <input class="card-name-input" type="text" value="Novo cartao" aria-label="Nome do cartao">
+          </div>
+          <p class="card-subtitle">Resumo do cartao no mes selecionado</p>
+        </div>
+
+        <div class="card-metrics" aria-live="polite">
+          <span>Total no mes</span>
+          <strong class="card-total-value">R$ 0,00</strong>
+          <small class="card-count-value">0 gastos</small>
         </div>
 
         <div class="card-menu">
@@ -122,57 +131,77 @@
             <button class="card-delete-button" type="button">Excluir cartao</button>
           </div>
         </div>
+
+        <button class="card-collapse-button" type="button" aria-expanded="true">
+          <span class="card-collapse-label">Recolher</span>
+          <span class="card-collapse-icon" aria-hidden="true"></span>
+        </button>
       </div>
 
-      <div class="expense-list-header">
-        <span>Descricao</span>
-        <span>Valor</span>
-        <span>Parcelas</span>
-        <span>Recorrencia</span>
-      </div>
+      <div class="card-details">
+        <div class="expense-list-header">
+          <span>Descricao</span>
+          <span>Valor</span>
+          <span>Parcelas</span>
+          <span>Recorrencia</span>
+        </div>
 
-      <div class="expenses-list"></div>
+        <div class="expenses-list"></div>
 
-      <div class="card-actions">
-        <button type="button" class="secondary-button add-expense-button">Adicionar gasto</button>
-      </div>
-
-      <div class="card-footer">
-        <label class="mini-total inline-total-field expense-highlight">
-          <span>Somatoria total dos gastos</span>
-          <input class="card-total-input" type="text" value="R$ 0,00" readonly>
-        </label>
+        <div class="card-actions">
+          <button type="button" class="secondary-button add-expense-button">Adicionar gasto</button>
+        </div>
       </div>
     </article>
   </template>
 
   <template id="expenseRowTemplate">
     <div class="expense-row">
-      <label class="expense-field expense-description-field">
-        <span>Descricao</span>
-        <input class="expense-description" type="text" placeholder="Ex.: Mercado, combustivel, assinatura">
-      </label>
+      <div class="expense-summary">
+        <div class="expense-summary-main">
+          <strong class="expense-summary-description">Despesa sem descricao</strong>
+          <span class="expense-badge">Gasto avulso</span>
+        </div>
 
-      <label class="expense-field expense-value-field">
-        <span>Valor</span>
-        <input class="expense-value" type="number" min="0" step="0.01" placeholder="0,00">
-      </label>
+        <div class="expense-summary-side">
+          <strong class="expense-summary-value">R$ 0,00</strong>
+          <button class="edit-expense-button" type="button" aria-label="Editar gasto">
+            <span aria-hidden="true">✎</span>
+          </button>
+        </div>
+      </div>
 
-      <label class="expense-field expense-installments-field">
-        <span>Parcelas</span>
-        <input class="expense-installments" type="number" min="1" max="12" step="1" value="1">
-      </label>
+      <div class="expense-editor">
+        <label class="expense-field expense-description-field">
+          <span>Descricao</span>
+          <input class="expense-description" type="text" placeholder="Ex.: Mercado, combustivel, assinatura">
+        </label>
 
-      <label class="expense-fixed-toggle">
-        <span>Recorrencia</span>
-        <span class="expense-fixed-toggle-control">
-          <input class="expense-fixed" type="checkbox">
-          <span>Fixo todo mes</span>
-        </span>
-      </label>
+        <div class="expense-editor-grid">
+          <label class="expense-field expense-value-field">
+            <span>Valor</span>
+            <input class="expense-value" type="number" min="0" step="0.01" placeholder="0,00">
+          </label>
 
-      <button class="remove-expense-button" type="button" aria-label="Remover gasto">Remover</button>
-      <div class="expense-badge">Gasto avulso</div>
+          <label class="expense-field expense-installments-field">
+            <span>Parcelas</span>
+            <input class="expense-installments" type="number" min="1" max="12" step="1" value="1">
+          </label>
+        </div>
+
+        <label class="expense-fixed-toggle">
+          <span>Recorrencia</span>
+          <span class="expense-fixed-toggle-control">
+            <input class="expense-fixed" type="checkbox">
+            <span>Fixo todo mes</span>
+          </span>
+        </label>
+
+        <div class="expense-editor-actions">
+          <button class="remove-expense-button" type="button" aria-label="Remover gasto">Remover</button>
+          <button class="done-expense-button" type="button">Concluir</button>
+        </div>
+      </div>
     </div>
   </template>
 
